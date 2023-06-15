@@ -1,6 +1,5 @@
-package com.smartsoft.routes
+package com.smartsoft.controllers
 
-import akka.actor.ActorSystem
 import com.smartsoft.model.{Candidate, ErrorInfo}
 import com.smartsoft.services.CandidatesService
 import sttp.tapir._
@@ -9,7 +8,10 @@ import io.circe.generic.auto._
 import sttp.model.StatusCode
 import sttp.tapir.generic.auto._
 
-object CandidateEndpoints {
+import scala.concurrent.ExecutionContext
+
+class CandidateController()(implicit ec: ExecutionContext) extends APIController {
+
   val candidateBaseEndpoint = baseEndpoint.in("candidate").description("Candidate Endpoints: Provides all functionality to manage candidates catalogue data")
   // in(path[Int]("cid").and(jsonBody[Candidate]))
   val candidateCreateEndpoint: PublicEndpoint[Candidate, ErrorInfo, Candidate, Any] =
@@ -51,7 +53,6 @@ object CandidateEndpoints {
       .out(jsonBody[List[Candidate]]
         .description("A list of candidates"))
 
-  val allEndpoints = List(candidateCreateEndpoint, candidateUpdateEndpoint, candidateByID, candidateByID)
 
   val allServerEndpoints = List(
     candidateCreateEndpoint.serverLogic(CandidatesService.createCandidate _),
