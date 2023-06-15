@@ -18,7 +18,11 @@ object CampaignFinanceAPIApp extends LazyLogging with APIModule {
     // When working with kubernetes clusters to provide readiness and liveness probe
     // AkkaManagement(system).start()
 
+    // handle security
+
     // initialize server with routes and start it
+    // how can I make server injectable thru some factory method.
+    // we need to load server from configuration
     new CampaignFinanceAkkaHttpServer(routes).start
       .map(_.addToCoordinatedShutdown(30 seconds))
       .foreach{ server =>
