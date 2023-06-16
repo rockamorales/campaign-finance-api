@@ -1,5 +1,5 @@
 # Campaign finance API
-![example workflow](https://github.com/rockamorales/campaign-finance-api/actions/workflows/scala.yml/badge.svg)
+![Build](https://github.com/rockamorales/campaign-finance-api/actions/workflows/scala.yml/badge.svg)
 
 This API provides the functionality required to keep track of campaign contributions, is able to register
 individual contributions and contributions thru PACs (political action committees)
