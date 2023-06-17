@@ -1,3 +1,5 @@
 package com.smartsoft.model
 
-case class ErrorInfo(code: String, message: String)
+import sttp.model.StatusCode
+
+case class ErrorInfo(code: StatusCode, message: String)

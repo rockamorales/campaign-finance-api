@@ -1,6 +1,5 @@
 package com.smartsoft
 
-import akka.actor.ActorSystem
 import com.smartsoft.server.CampaignFinanceAkkaHttpServer
 import com.typesafe.scalalogging.LazyLogging
 

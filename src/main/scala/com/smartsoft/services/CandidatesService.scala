@@ -6,7 +6,7 @@ import sttp.model.StatusCode
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-object CandidatesService {
+case class CandidatesService() {
   def findAllCandidate(): Future[Either[ErrorInfo, List[Candidate]]] = {
     Future(Right(List(Candidate("","","","","",""))))
   }
