@@ -40,10 +40,10 @@ The API will be divided into two part,
 1. maintain contributions information including all other domain's member entities like individuals, pacs and others. For this, I'll choose Event Sourcing using akka persistent entities, using cassandra as the actor's journal database
 2. Aggregate information and keep aggregated information UP TO DATE in a PIT database with a delay of 500ms to 1s (Eventual consistency).
 
-For the aggregation part, 
+For the aggregation actors, one per aggregation key will be created and each actor should maintain an in memory state until a scheduled timer is triggered
+DB updates frequency will be configurable through the config file. Each time the timer is triggered if the in memory state contains some unsaved aggregated information an update to the DB will be triggered...
 
 ![](docs/campaign_finance_api_low_level_diagram.png "Application Architecture")
-
 
 ### Application code structure
 The application consists of the following structure. At the base package
@@ -96,5 +96,6 @@ What about writing data while actor that handles the data is down?: stashing mig
 local journal with command sourcing while waiting for the actors to come online. When the actors come back online, we can then using Akka persistence query, 
 retrieve all COMMANDS send them to the actor that was failing, but, then, how to mark the COMMANDS as processed
 
-
+### PIT DB Data structure
+...
 
