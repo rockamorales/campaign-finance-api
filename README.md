@@ -21,7 +21,7 @@ The dataset contains several entities that can result in either the creation of 
 Instead, all information will be derived from the main data which are the contributions and saved accordingly through the contributions save endpoints.
 Following endpoints will be provided
 * POST /api/v1_0/login: Authentication endpoint. Part of the security mechanisms
-* POST /api/v1_0/signUp: allows to create users which can be used to access the API
+* POST /api/v1_0/signUp: ??? allows to create users which can be used to access the API
 * POST /api/v1_0/contributions: Allows to register individual or pac contributions
 
 Read: All read endpoints are reads from a point in time db that will contain contributions aggregated 
@@ -58,6 +58,10 @@ The application consists of the following structure. At the base package
 
 ### Metrics and Monitoring: 
 Use prometheus to collect metrics and Graphana to present the data. More details coming up soon...
+Following dashboards will be presented
+1. Akka HTTP Dashboard
+2. Akka Actors Dashboard
+3. Customized API dashboard???
 
 ### Akka actors serialization: 
 exploring options, for now, default java serialization will be used. Protobuf seems like a good option that can also handle schema evolution seamlessly, kryo is another good option, however, I'm not sure how well maintained akka support is
