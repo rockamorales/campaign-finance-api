@@ -97,5 +97,9 @@ local journal with command sourcing while waiting for the actors to come online.
 retrieve all COMMANDS send them to the actor that was failing, but, then, how to mark the COMMANDS as processed
 
 ### PIT DB Data structure
-...
+Database structure is simple because we only a need a customized structure to store the aggregation that can be queried by some Read API. 
+The PIT DB contains the tables to handle the general information about individuals, pacs, industries and candidates as well as all the tables required to handle the different aggregations like
+ContributionsByCandidate, ContributionsByIndividual, ContributionsByIndustry, ContributionsByPac
 
+Following shows the DB Model
+![](docs/PITDBStructure.drawio.png "Application Architecture")
