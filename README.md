@@ -38,7 +38,9 @@ This API is based on one aggregate root, with contributions as the root entity, 
 ### API underlying implementation
 The API will be divided into two part, 
 1. maintain contributions information including all other domain's member entities like individuals, pacs and others. For this, I'll choose Event Sourcing using akka persistent entities, using cassandra as the actor's journal database
-2. Aggregate information and keep aggregated information UP TO DATE in a PIT database with a delay of 500ms to 1s (Eventual consistency)
+2. Aggregate information and keep aggregated information UP TO DATE in a PIT database with a delay of 500ms to 1s (Eventual consistency).
+
+For the aggregation part, 
 
 ![](docs/campaign_finance_api_low_level_diagram.png "Application Architecture")
 
