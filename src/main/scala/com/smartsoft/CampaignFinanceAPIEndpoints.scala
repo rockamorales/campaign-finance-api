@@ -26,6 +26,7 @@ class CampaignFinanceAPIEndpoints() extends LazyLogging with APIModule {
     .metricsInterceptor(prometheusMetrics.metricsInterceptor()).options
 
   val docs = OpenAPIDocsInterpreter().toOpenAPI(candidateController.allServerEndpoints.map(_.endpoint), "Campaign Finances", "1.0")
+
   val allAkkaRoutes =
     AkkaHttpServerInterpreter(customServerOptions).toRoute(metricsEndpoint) ~
       AkkaHttpServerInterpreter(customServerOptions).toRoute(SwaggerUI[Future](docs.toYaml)) ~
