@@ -21,6 +21,6 @@ case class CandidatesService() {
 
   def updateCandidate(cid: String, candidate: Candidate): Either[ErrorInfo, StatusCode] = {
     // update logic
-    Future(Right(StatusCode.NoContent))
+    Right(StatusCode.NoContent)
   }
 }

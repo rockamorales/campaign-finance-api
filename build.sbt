@@ -11,7 +11,10 @@ lazy val tapirOpenAPICirceYaml = "1.0.0-M9"
 lazy val tapirAkkaHTTPServer = "1.5.4"
 lazy val logbackClassic = "1.4.7"
 lazy val macWire = "2.5.8"
-
+val cats         = "2.0.0"
+val circe        = "0.14.3"
+val http4s       = "0.23.21"
+val kittens      = "2.0.0"
 
 lazy val rootProject = (project in file("."))
   .settings(
@@ -40,6 +43,21 @@ lazy val rootProject = (project in file("."))
       "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-openapi-circe-yaml" % tapirOpenAPICirceYaml,
       "com.softwaremill.sttp.tapir" %% "tapir-akka-http-server" % tapirAkkaHTTPServer exclude("com.typesafe.akka", "akka-stream_2.12"),
+
+      "org.http4s" %% "http4s-ember-client" % http4s,
+      "org.http4s" %% "http4s-ember-server" % http4s,
+      "org.http4s" %% "http4s-circe" % http4s,
+      "org.http4s" %% "http4s-dsl" % http4s,
+      "org.typelevel" %% "kittens" % kittens,
+      "org.typelevel" %% "cats-core" % cats,
+      "io.circe" %% "circe-core" % circe,
+      "io.circe" %% "circe-generic" % circe,
+      "io.circe" %% "circe-refined" % circe,
+      "io.circe" %% "circe-parser" % circe,
+
+      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % "1.6.0",
+
+
       "ch.qos.logback" % "logback-classic" % logbackClassic,
 
       "org.scalatest" %% "scalatest" % "3.2.16" % Test

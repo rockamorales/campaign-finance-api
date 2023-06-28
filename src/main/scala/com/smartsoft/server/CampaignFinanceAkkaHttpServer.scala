@@ -12,7 +12,7 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object CampaignFinanceAkkaHttpServer {
-  def apply()(implicit actorSystem: ActorSystem, config: Config, ec: ExecutionContext): APIServer[Future] = {
+  def apply[T]()(implicit actorSystem: ActorSystem, config: Config, ec: ExecutionContext): APIServer[Future] = {
     new CampaignFinanceAkkaHttpServer()
   }
 }

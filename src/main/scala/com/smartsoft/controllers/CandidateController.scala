@@ -12,11 +12,14 @@ import sttp.tapir.server.{PartialServerEndpoint, ServerEndpoint}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class CandidateController(apiSecurity: APISecurity, candidatesService: CandidatesService)(implicit ec: ExecutionContext) extends APIController {
+class CandidateController(apiSecurity: APISecurity, candidatesService: CandidatesService)
+                         (implicit ec: ExecutionContext) extends APIController {
 
   val candidateBaseEndpoint: PartialServerEndpoint[String, User, Unit, ErrorInfo, Unit, Any, Future]
   = apiSecurity.withSecurity(baseEndpoint)
-    .in("candidate").description("Candidate Endpoints: Provides all functionality to manage candidates catalogue data")
+    .in("candidate")
+    .description("Candidate Endpoints: Provides all functionality to manage candidates catalogue data")
+
   // in(path[Int]("cid").and(jsonBody[Candidate]))
   val candidateCreateEndpoint: ServerEndpoint.Full[String, User, Candidate, ErrorInfo, Candidate, Any, Future] =
     candidateBaseEndpoint
@@ -26,10 +29,12 @@ class CandidateController(apiSecurity: APISecurity, candidatesService: Candidate
         .description("Candidate's information to be persisted"))
       .out(jsonBody[Candidate]
         .description("Persisted candidates information"))
-      .serverLogic(_ => (candidatesService.createCandidate _).andThen(Future(_)))
+      .serverLogic( _ => // User details is not needed for now
+        input => Future(candidatesService.createCandidate(input))
+      )
       // first parameter is ignored for now, user is not used, maybe we should use it for audit
-  //   ^-- TODO: probably we should return empty body with 204 - No Content,
-  //    because we are not generating any new data on the server
+      //   ^-- TODO: probably we should return empty body with 204 - No Content,
+      // because we are not generating any new data on the server
 
   val candidateUpdateEndpoint: ServerEndpoint.Full[String, User, (String, Candidate), ErrorInfo, StatusCode, Any, Future] =
     candidateBaseEndpoint
@@ -42,17 +47,21 @@ class CandidateController(apiSecurity: APISecurity, candidatesService: Candidate
           "CID cannot be changed. If CID does not exists an HTTP - 404 - Not Found will be returned"))
       .out(jsonBody[StatusCode]
         .description("If request is executed without errors: 204 - No Content HTTP will be returned"))
-      .serverLogic(_ => (candidatesService.updateCandidate _).tupled.andThen(Future(_)))
+      .serverLogic( _ => //User information is not needed for now
+        input => Future((candidatesService.updateCandidate _).tupled(input) )
+      )
 
   val candidateByID: ServerEndpoint.Full[String, User, String, ErrorInfo, Candidate, Any, Future] =
     candidateBaseEndpoint
       .get
       .description("Retrieves candidate's data by ID")
       .in(path[String]("cid")
-        .description("Candidate Id"))
+            .description("Candidate Id"))
       .out(jsonBody[Candidate]
-        .description("Candidate information. Will return 404 - Not Found if the candidate ID is not found"))
-      .serverLogic(_ => (candidatesService.findCandidateById _).compose(Future(_)))
+            .description("Candidate information. Returns 404 - Not Found if the candidate ID is not found"))
+      .serverLogic(_ =>
+        input => Future(candidatesService.findCandidateById(input))
+      )
 
   val candidateListAll: ServerEndpoint.Full[String, User, Unit, ErrorInfo, List[Candidate], Any, Future] =
     candidateBaseEndpoint
@@ -60,7 +69,9 @@ class CandidateController(apiSecurity: APISecurity, candidatesService: Candidate
       .description("Retrieves all candidates.")
       .out(jsonBody[List[Candidate]]
         .description("A list of candidates"))
-      .serverLogic(_ => _ => (candidatesService.findAllCandidate)
+      .serverLogic(_ =>
+        _ => Future(candidatesService.findAllCandidate())
+      )
 
 
   val allServerEndpoints = List(
