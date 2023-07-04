@@ -27,6 +27,7 @@ lazy val rootProject = (project in file("."))
       "com.typesafe.akka" %% "akka-stream" % akkaVersion,
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+      "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
 
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
@@ -34,6 +35,7 @@ lazy val rootProject = (project in file("."))
 
       "com.softwaremill.macwire" %% "macros" % macWire % "provided",
       "io.jsonwebtoken" % "jjwt-api" % "0.11.5",
+
 
 
       "com.lightbend.akka.management" %% "akka-management" % AkkaManagementVersion,
@@ -44,19 +46,12 @@ lazy val rootProject = (project in file("."))
       "com.softwaremill.sttp.tapir" %% "tapir-openapi-circe-yaml" % tapirOpenAPICirceYaml,
       "com.softwaremill.sttp.tapir" %% "tapir-akka-http-server" % tapirAkkaHTTPServer exclude("com.typesafe.akka", "akka-stream_2.12"),
 
-      "org.http4s" %% "http4s-ember-client" % http4s,
-      "org.http4s" %% "http4s-ember-server" % http4s,
-      "org.http4s" %% "http4s-circe" % http4s,
-      "org.http4s" %% "http4s-dsl" % http4s,
-      "org.typelevel" %% "kittens" % kittens,
-      "org.typelevel" %% "cats-core" % cats,
       "io.circe" %% "circe-core" % circe,
       "io.circe" %% "circe-generic" % circe,
       "io.circe" %% "circe-refined" % circe,
       "io.circe" %% "circe-parser" % circe,
 
-      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % "1.6.0",
-
+      "org.mindrot" % "jbcrypt" % "0.4",
 
       "ch.qos.logback" % "logback-classic" % logbackClassic,
 

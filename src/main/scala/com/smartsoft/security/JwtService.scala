@@ -32,7 +32,6 @@ case class JwtService(config: Config)(implicit val ec: ExecutionContext) {
             Future.successful(Right(Option(User("rockamorales", "Roberto", "Morales", "rockamorales@hotmail.com", "some-password-hash", LocalDate.now()))))
           case Some(userId) => Future.successful(Right(None))
           case None => Future.successful(Right(None))
-
         }
 
     }

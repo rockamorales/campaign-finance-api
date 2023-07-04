@@ -2,9 +2,12 @@ package com.smartsoft.model
 
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 
-import java.time.LocalDate
+import java.time.{LocalDateTime}
 
-case class User(id: String, firstName: String, lastName: String, email: String, passwordHash: String, created: LocalDate)
+case class User(userCode: String, firstName: String,
+                lastName: String, email: String,
+                address: String, password: String,
+                created: LocalDateTime = null)
 
 object User {
   implicit val userDecoder = deriveDecoder[User]

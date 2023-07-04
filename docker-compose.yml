@@ -1,0 +1,13 @@
+version: '2'
+
+services:
+  cassandra:
+    image: cassandra:latest
+    container_name: campaign_finance_cassandra
+    ports:
+      - "7000:7000"
+      - "9042:9042"
+    volumes:
+      - "./sql:/scripts"
+    environment:
+      - "CASSANDRA_CLUSTER_NAME=OUR_DOCKERIZED_CASSANDRA_SINGLE_NODE_CLUSTER"
