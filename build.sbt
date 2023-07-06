@@ -1,5 +1,3 @@
-ThisBuild / version := "0.1.0-SNAPSHOT"
-
 ThisBuild / scalaVersion := "2.13.11"
 
 lazy val tapirVersion = "1.5.4"
@@ -11,9 +9,7 @@ lazy val tapirOpenAPICirceYaml = "1.0.0-M9"
 lazy val tapirAkkaHTTPServer = "1.5.4"
 lazy val logbackClassic = "1.4.7"
 lazy val macWire = "2.5.8"
-val cats         = "2.0.0"
 val circe        = "0.14.3"
-val http4s       = "0.23.21"
 val kittens      = "2.0.0"
 
 lazy val rootProject = (project in file("."))

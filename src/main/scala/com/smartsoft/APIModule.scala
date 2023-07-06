@@ -13,7 +13,7 @@ import scala.concurrent.Future
 
 trait APIModule {
 
-  implicit lazy val actorSystem = ActorSystem("CampaignFinanceServerAPI")
+  implicit lazy val actorSystem: ActorSystem = ActorSystem("CampaignFinanceServerAPI")
 
   implicit lazy val config: Config = ConfigFactory.load()
   import actorSystem.dispatcher

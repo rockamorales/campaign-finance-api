@@ -1,13 +1,14 @@
 package com.smartsoft.security
 
+import com.smartsoft.exceptions.TokenExpiredException
 import com.smartsoft.model.User
 import com.typesafe.config.Config
 import io.jsonwebtoken.security.Keys
-import io.jsonwebtoken.{Claims, Jwts}
+import io.jsonwebtoken.{Claims, Jws, Jwts}
 
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import java.time.{Instant, LocalDate}
+import java.time.{Instant, LocalDate, LocalDateTime}
 import java.util.{Date, UUID}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -16,28 +17,30 @@ case class JwtService(config: Config)(implicit val ec: ExecutionContext) {
   private val secret: String = config.getString("jwt.secret")
   private val jwtTTL: Long = config.getLong("jwt.expiration.seconds")
 
-  def getUser(token: String): Future[Either[Throwable, Option[User]]] = {
-    val urlDecodedToken: String = URLDecoder.decode(token, StandardCharsets.UTF_8.toString)
-    Try {
-      Jwts
-        .parserBuilder()
-        .setSigningKey(secret.getBytes(StandardCharsets.UTF_8.toString))
-        .build().parseClaimsJws(urlDecodedToken)
-    } match {
-      case Failure(exception) => Future.successful(Left(exception))
-      case Success(claims) =>
-        val jwtClaims: Claims = claims.getBody()
-        Option(jwtClaims.get("userId").toString) match {
-          case Some(userId) if userId == "rockamorales" =>
-            Future.successful(Right(Option(User("rockamorales", "Roberto", "Morales", "rockamorales@hotmail.com", "some-password-hash", LocalDate.now()))))
-          case Some(userId) => Future.successful(Right(None))
-          case None => Future.successful(Right(None))
-        }
-
-    }
+  def getUserCode(claims: Jws[Claims]): Option[String] = {
+      val jwtClaims: Claims = claims.getBody()
+      Option(jwtClaims.get("userCode").toString)
   }
 
-  def generateToken(userId: String): String = {
+  def validateToken(token: String): Try[Jws[Claims]] = {
+    val urlDecodedToken: String = URLDecoder.decode(token, StandardCharsets.UTF_8.toString)
+      Try {
+        Jwts
+          .parserBuilder()
+          .setSigningKey(secret.getBytes(StandardCharsets.UTF_8.toString))
+          .build().parseClaimsJws(urlDecodedToken)
+      } match {
+        case Failure(exception) => Failure(exception)
+        case Success(claims) =>
+          val jwtClaims: Claims = claims.getBody()
+          if (new Date().before(jwtClaims.getExpiration)) {
+            Failure (new TokenExpiredException)
+          }
+          Success(claims)
+      }
+  }
+
+  def generateToken(userCode: String): String = {
     val now = Instant.now
     val jwt = Jwts
       .builder()
@@ -46,7 +49,7 @@ case class JwtService(config: Config)(implicit val ec: ExecutionContext) {
       .setExpiration(Date.from(now.plusSeconds(jwtTTL.toInt)))
       .signWith(
         Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8.toString))
-      ).claim("userId", userId) // adding claim
+      ).claim("userCode", userCode) // adding claim
 
     jwt.compact()
   }

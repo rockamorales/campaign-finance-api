@@ -1,6 +1,7 @@
 package com.smartsoft
 
 import akka.actor.ActorSystem
+import akka.dispatch.{Dispatcher, MessageDispatcher}
 import akka.http.scaladsl.server.Directives._
 import com.smartsoft.controllers.CandidateController
 import com.typesafe.scalalogging.LazyLogging
@@ -18,14 +19,17 @@ object CampaignFinanceAPIEndpoints {
 }
 
 class CampaignFinanceAPIEndpoints() extends LazyLogging with APIModule {
-  implicit val dispatcher = actorSystem.dispatchers.lookup("akka-http-server-interpreter-dispatcher")
+  implicit val dispatcher: MessageDispatcher =
+    actorSystem.dispatchers.lookup("akka-http-server-interpreter-dispatcher")
 
   val prometheusMetrics: PrometheusMetrics[Future] = PrometheusMetrics.default[Future]()
   val metricsEndpoint: ServerEndpoint[Any, Future] = prometheusMetrics.metricsEndpoint
   val customServerOptions = AkkaHttpServerOptions.customiseInterceptors
     .metricsInterceptor(prometheusMetrics.metricsInterceptor()).options
 
-  val docs = OpenAPIDocsInterpreter().toOpenAPI(candidateController.allServerEndpoints.map(_.endpoint), "Campaign Finances", "1.0")
+  val docs = OpenAPIDocsInterpreter()
+    .toOpenAPI(candidateController.allServerEndpoints.map(_.endpoint),
+          "Campaign Finances", "1.0")
 
   val allAkkaRoutes =
     AkkaHttpServerInterpreter(customServerOptions).toRoute(metricsEndpoint) ~
