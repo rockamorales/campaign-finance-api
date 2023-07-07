@@ -24,15 +24,23 @@ lazy val rootProject = (project in file("."))
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
       "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
+      "com.typesafe.akka" %% "akka-persistence-query" % akkaVersion,
+      "com.typesafe.akka" %% "akka-coordination" % akkaVersion,
+      "com.typesafe.akka" %% "akka-remote" % akkaVersion,
+      "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
+      "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
+      "com.typesafe.akka" %% "akka-pki" % akkaVersion,
 
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
       "com.typesafe.scala-logging" %% "scala-logging" % scalaLogging,
 
       "com.softwaremill.macwire" %% "macros" % macWire % "provided",
+      "com.softwaremill.macwire" %% "macrosakka" % macWire % "provided",
+
       "io.jsonwebtoken" % "jjwt-api" % "0.11.5",
-
-
+      "io.jsonwebtoken" % "jjwt-impl" % "0.11.5",
+      "io.jsonwebtoken" % "jjwt-gson" % "0.11.5",
 
       "com.lightbend.akka.management" %% "akka-management" % AkkaManagementVersion,
 
@@ -48,6 +56,10 @@ lazy val rootProject = (project in file("."))
       "io.circe" %% "circe-parser" % circe,
 
       "org.mindrot" % "jbcrypt" % "0.4",
+
+      "com.typesafe.akka" %% "akka-persistence-cassandra" % "1.1.1",
+      "com.typesafe.akka" %% "akka-persistence-cassandra-launcher" % "1.1.1" % Test,
+      "com.esri.geometry" % "esri-geometry-api" % "2.2.4",
 
       "ch.qos.logback" % "logback-classic" % logbackClassic,
 

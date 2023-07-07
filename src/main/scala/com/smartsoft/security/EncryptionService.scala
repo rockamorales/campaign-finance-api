@@ -9,7 +9,7 @@ class EncryptionService {
     BCrypt.hashpw(text, BCrypt.gensalt())
   }
 
-  def checkPassword(providedPassword: String, storedPassword: String): Unit = {
+  def checkPassword(providedPassword: String, storedPassword: String): Try[Boolean] = {
     Try {
       BCrypt.checkpw(providedPassword, storedPassword)
     }

@@ -9,7 +9,7 @@ import scala.util.Success
 
 class AuthenticationService (jwtService: JwtService)(implicit ec: ExecutionContext) {
   def authenticate(token: String): Future[Either[ErrorInfo, User]] = {
-    Future(Right(User("","","","","","",LocalDateTime.now())))
+    Future(Right(User("","","","",Option(""),"",Option(LocalDateTime.now()))))
 //      jwtService.getUserCode(token: String).map {
 //        case Some(userCode) =>
 //          Left(ErrorInfo(StatusCode.Unauthorized, "Token is expired/invalid"))
