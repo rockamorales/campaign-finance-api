@@ -1,8 +1,8 @@
 package com.smartsoft
 
-import akka.actor.{ActorSystem, Terminated}
-import com.smartsoft.actors.{SessionsPersistentActor, UserPersistentActor}
-import com.smartsoft.controllers.{AuthController, CandidateController}
+import akka.actor.{ActorRef, ActorSystem, Terminated}
+import com.smartsoft.actors.{UserManagementActor, UserPersistentActor, UsersSupervisorActor}
+import com.smartsoft.controllers.{AuthController, UsersController}
 import com.smartsoft.security.{APISecurity, AuthenticationService, EncryptionService, JwtService}
 import com.smartsoft.server.APIServer
 import com.smartsoft.services.{CandidatesService, UserService}
@@ -19,15 +19,19 @@ trait APIModule {
   implicit lazy val config: Config = ConfigFactory.load()
   import actorSystem.dispatcher
 
-  lazy val apiSecurity = wire[APISecurity]
-  lazy val authService = wire[AuthenticationService]
-  lazy val jwtService = wire[JwtService]
-  lazy val candidatesService = wire[CandidatesService]
-  lazy val encryptionService = wire[EncryptionService]
-  lazy val userPersistentActor = wireActor[UserPersistentActor]("users")
-  lazy val authController = wire[AuthController]
-  lazy val userService = wire[UserService]
-  def createServer(impl: String) = wireWith(APIServer.create _ )
+  lazy val apiSecurity: APISecurity = wire[APISecurity]
+  lazy val authService: AuthenticationService = wire[AuthenticationService]
+  lazy val jwtService: JwtService = wire[JwtService]
+  lazy val candidatesService: CandidatesService = wire[CandidatesService]
+  lazy val encryptionService: EncryptionService = wire[EncryptionService]
+
+  lazy val userManagementActorProps = wireProps[UserManagementActor]
+  lazy val usersSupervisorActor = wireActor[UsersSupervisorActor]("users-supervisor")
+  lazy val authController: AuthController = wire[AuthController]
+  lazy val userService: UserService = wire[UserService]
+  lazy val usersController: UsersController = wire[UsersController]
+
+  def createServer(impl: String): APIServer[Future] = wireWith(APIServer.create _)
 
   def terminate(): Future[Terminated] = {
     actorSystem.terminate()

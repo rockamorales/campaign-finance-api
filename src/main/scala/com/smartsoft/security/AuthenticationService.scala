@@ -1,24 +1,41 @@
 package com.smartsoft.security
 
-import com.smartsoft.model.{ErrorInfo, User}
-import sttp.model.StatusCode
+import akka.actor.ActorRef
+import com.smartsoft.actors.{SessionsPersistentActor, UserPersistentActor, UsersSupervisorActor}
+import com.smartsoft.model.{ErrorInfo, LoginResponse, Unauthorized, User}
 
-import java.time.LocalDateTime
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Success
+import akka.pattern.ask
+import akka.util.Timeout
 
-class AuthenticationService (jwtService: JwtService)(implicit ec: ExecutionContext) {
-  def authenticate(token: String): Future[Either[ErrorInfo, User]] = {
-    Future(Right(User("","","","",Option(""),"",Option(LocalDateTime.now()))))
-//      jwtService.getUserCode(token: String).map {
-//        case Some(userCode) =>
-//          Left(ErrorInfo(StatusCode.Unauthorized, "Token is expired/invalid"))
-//        case Right(Some(user)) => Right(user)
-//        case Right(None) => Left(ErrorInfo(StatusCode.Unauthorized, "Invalid user/password"))
-//      }
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
+class AuthenticationService (jwtService: JwtService, usersSupervisorActor: ActorRef)
+                            (implicit ec: ExecutionContext) {
+  implicit val timeout: Timeout = Timeout(30 seconds)
+
+  def login(loginRequest: LoginRequest): Future[Either[ErrorInfo, LoginResponse]] = {
+    (usersSupervisorActor ? UsersSupervisorActor.LoginUser(loginRequest))
+      .map {
+        case SessionsPersistentActor.UserAuthenticated(userSession) =>
+          Right(LoginResponse(userSession.token))
+        case UserPersistentActor.UserUnauthorized(message) =>
+          Left(Unauthorized(message))
+      }
   }
 
-  def login(loginRequest: LoginRequest): Unit = {
-
+  def authenticate(token: String): Future[Either[ErrorInfo, User]] = {
+    (usersSupervisorActor ? UsersSupervisorActor.Authenticate(token))
+      .map {
+        case UserPersistentActor.UserUnauthorized(message) =>
+          Left(Unauthorized(message))
+        case SessionsPersistentActor.UserUnauthorized(message) =>
+          Left(Unauthorized(message))
+        case SessionsPersistentActor.UserAuthorized(user) =>
+          Right(user)
+        case UsersSupervisorActor.UserUnauthorized(message) =>
+          Left(Unauthorized(message))
+      }
   }
 }

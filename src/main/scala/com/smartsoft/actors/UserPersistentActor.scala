@@ -1,8 +1,7 @@
 package com.smartsoft.actors
 
-import akka.actor.ActorLogging
+import akka.actor.{ActorLogging, ActorRef, Props}
 import akka.persistence.{PersistentActor, RecoveryCompleted}
-import com.smartsoft.actors.SessionsPersistentActor.UserSession
 import com.smartsoft.model.User
 import com.smartsoft.security.{EncryptionService, JwtService, LoginRequest}
 
@@ -10,18 +9,25 @@ import java.time.LocalDateTime
 import scala.util.{Failure, Success}
 
 object UserPersistentActor {
+
+  def create(userCode: String, encryptionService: EncryptionService, jwtService: JwtService) = {
+    new UserPersistentActor(userCode, encryptionService, jwtService)
+  }
+  def props(userCode: String, encryptionService: EncryptionService, jwtService: JwtService): Props = {
+    Props(new UserPersistentActor(userCode, encryptionService, jwtService))
+  }
   // Commands
   case class CreateUser(user: User)
   case class UpdateUser(user: User)
   case class LoginUser(loginRequest: LoginRequest)
-  case class Authenticate(token: String)
+  case class Authenticate(token: String, userCode: String)
   case class InvalidateAllActiveSessions(userCode: String)
 
   //Events
   case class UserCreated(user: User)
   case class UserUpdated(user: User)
   case class UserUnauthorized(message: String)
-  case class UserAuthenticated()
+  case class UserAuthenticated(user: User)
   case class RegistrationFailed(exception: Throwable)
 
   //Query
@@ -45,13 +51,13 @@ object UserPersistentActor {
   }
 }
 
-class UserPersistentActor(encryptionService: EncryptionService, jwtService: JwtService)
+class UserPersistentActor(userCode: String, encryptionService: EncryptionService, jwtService: JwtService)
   extends PersistentActor with ActorLogging {
   import UserPersistentActor._
 
   private var usersState = UsersState()
 
-  override def persistenceId: String = "user"
+  override def persistenceId: String = s"user-$userCode"
 
   def process(usersState: UsersState = UsersState()): Receive = {
     case CreateUser(user) =>
@@ -75,8 +81,6 @@ class UserPersistentActor(encryptionService: EncryptionService, jwtService: JwtS
           val userWithPasswordHash = user.copy(password = passwordHash, created = Option(LocalDateTime.now()))
           val userUpdatedEvent = UserUpdated(userWithPasswordHash)
           persist(userUpdatedEvent) { evt =>
-            // remove password hash from the response
-//            usersState = usersState.updated(evt)
             val user = evt.user.copy(password = "*****")
             sender() ! UserUpdatedResponse(user)
             context.become(process(usersState.updated(evt)))
@@ -97,68 +101,74 @@ class UserPersistentActor(encryptionService: EncryptionService, jwtService: JwtS
     case LoginUser(loginRequest) =>
       usersState.getUser(loginRequest.userCode) match {
         case Some(user) =>
-          log.info("Child path: " + self.path.toString + s"/sessions-${user.userCode}")
-          val child = context.child(s"sessions-${user.userCode}")
-          child match {
-            // what if child does not exists?. I will start it. Sessions actors will be created in a lazy manner
-            // (until the first required interaction.
-            case Some(childRef) => childRef ! SessionsPersistentActor.AuthenticateUser(loginRequest, user, sender())
-            case None =>
-              // if it is the first interaction with this users session actor we will create it
-              // if it is down due to some issue, we will try to recover it
-              val child = context.actorOf(SessionsPersistentActor.props(user.userCode, encryptionService, jwtService),
-                s"sessions-${user.userCode}")
-              context.watch(child)
-              child ! SessionsPersistentActor.AuthenticateUser(loginRequest, user, sender())
-          }
-        case None => sender() ! UserUnauthorized
+          getChild(loginRequest.userCode) ! SessionsPersistentActor.AuthenticateUser(loginRequest, user, sender())
+//          log.info("Child path: " + self.path.toString + s"/sessions-${user.userCode}")
+//          val child = context.child(s"sessions-${user.userCode}")
+//          child match {
+//            // what if child does not exists?. I will start it. Sessions actors will be created in a lazy manner
+//            // (until the first required interaction.
+//            case Some(childRef) => childRef ! SessionsPersistentActor.AuthenticateUser(loginRequest, user, sender())
+//            case None =>
+//              // if it is the first interaction with this users session actor we will create it
+//              // if it is down due to some issue, we will try to recover it
+//              val child = context.actorOf(SessionsPersistentActor.props(user.userCode, encryptionService, jwtService),
+//                s"sessions-${user.userCode}")
+//              context.watch(child)
+//              child ! SessionsPersistentActor.AuthenticateUser(loginRequest, user, sender())
+//          }
+        case None => sender() ! UserUnauthorized("User unauthorized")
       }
 
-    case Authenticate(token: String) =>
+    case Authenticate(token: String, userCode: String) =>
       jwtService.validateToken(token) match {
         case Failure(exception) => sender() ! UserUnauthorized(exception.getMessage)
-        case Success(claims) => {
-          for {
-            userCode <- jwtService.getUserCode(claims)
-            user <- usersState.getUser(userCode)
-          } yield user
-        } match {
-          case Some(_) => sender() ! UserAuthenticated
-          case None => sender() ! UserUnauthorized
-        }
+        case Success(claims) =>
+          val userAndSessionId =  for {
+              user <- usersState.getUser(userCode)
+              sessionId <- jwtService.getSessionId(claims)
+            } yield (user, sessionId)
+
+          userAndSessionId match {
+            case Some((user, sessionId)) =>
+              getChild(user.userCode) ! SessionsPersistentActor.AuthorizeUser(sessionId, sender(), user)
+              //sender() ! UserAuthenticated(user)
+            case None => sender() ! UserUnauthorized("Token invalid or expired")
+          }
       }
 
     case GetSessionHistory(userCode) =>
-      log.info("Child path: " + self.path.toString + s"/sessions-${userCode}")
-      val child = context.child(s"sessions-${userCode}")
-      child match {
-        // what if child does not exists?. I will start it. Sessions actors will be created in a lazy manner
-        // (until the first required interaction.
-        case Some(childRef) => childRef ! SessionsPersistentActor.GetSessionHistory(userCode, sender())
-        case None =>
-          // if it is the first interaction with this users session actor we will create it
-          // if it is down due to some issue, we will try to recover it
-          val child = context.actorOf(SessionsPersistentActor.props(userCode, encryptionService, jwtService),
-            s"sessions-${userCode}")
-          context.watch(child)
-          child ! SessionsPersistentActor.GetSessionHistory(userCode, sender())
-      }
+      getChild(userCode) ! SessionsPersistentActor.GetSessionHistory(userCode, sender())
+//      log.info("Child path: " + self.path.toString + s"/sessions-${userCode}")
+//      val child = context.child(s"sessions-${userCode}")
+//      child match {
+//        // what if child does not exists?. I will start it. Sessions actors will be created in a lazy manner
+//        // (until the first required interaction.
+//        case Some(childRef) => childRef ! SessionsPersistentActor.GetSessionHistory(userCode, sender())
+//        case None =>
+//          // if it is the first interaction with this users session actor we will create it
+//          // if it is down due to some issue, we will try to recover it
+//          val child = context.actorOf(SessionsPersistentActor.props(userCode, encryptionService, jwtService),
+//            s"sessions-${userCode}")
+//          context.watch(child)
+//          child ! SessionsPersistentActor.GetSessionHistory(userCode, sender())
+//      }
 
     case InvalidateAllActiveSessions(userCode) =>
-      log.info("Child path: " + self.path.toString + s"/sessions-${userCode}")
-      val child = context.child(s"sessions-${userCode}")
-      child match {
-        // what if child does not exists?. I will start it. Sessions actors will be created in a lazy manner
-        // (until the first required interaction.
-        case Some(childRef) => childRef ! SessionsPersistentActor.InvalidateAllActiveSessions
-        case None =>
-          // if it is the first interaction with this users session actor we will create it
-          // if it is down due to some issue, we will try to recover it
-          val child = context.actorOf(SessionsPersistentActor.props(userCode, encryptionService, jwtService),
-            s"sessions-${userCode}")
-          context.watch(child)
-          child ! SessionsPersistentActor.InvalidateAllActiveSessions
-      }
+      getChild(userCode) ! SessionsPersistentActor.InvalidateAllActiveSessions
+//      log.info("Child path: " + self.path.toString + s"/sessions-${userCode}")
+//      val child = context.child(s"sessions-${userCode}")
+//      child match {
+//        // what if child does not exists?. I will start it. Sessions actors will be created in a lazy manner
+//        // (until the first required interaction.
+//        case Some(childRef) => childRef ! SessionsPersistentActor.InvalidateAllActiveSessions
+//        case None =>
+//          // if it is the first interaction with this users session actor we will create it
+//          // if it is down due to some issue, we will try to recover it
+//          val child = context.actorOf(SessionsPersistentActor.props(userCode, encryptionService, jwtService),
+//            s"sessions-${userCode}")
+//          context.watch(child)
+//          child ! SessionsPersistentActor.InvalidateAllActiveSessions
+//      }
 
 
   }
@@ -180,10 +190,22 @@ class UserPersistentActor(encryptionService: EncryptionService, jwtService: JwtS
       //spawn child actors?? No
 
     case userCreated @ UserCreated(_) =>
-//      usersState = usersState.updated(userCreated)
     context.become(process(usersState.updated(userCreated)))
     case userUpdated @ UserUpdated(_) =>
       context.become(process(usersState.updated(userUpdated)))
-//      usersState = usersState.updated(userUpdated)
   }
+
+  def getChild(userCode: String): ActorRef = {
+    context.child(s"user-$userCode") match {
+      case Some(actor) => actor
+      case None =>
+        //spawn the actor, might be first time is required, or maybe the actor crashed
+        // or some cluster node crashed
+        context.actorOf(
+          SessionsPersistentActor.props(userCode, encryptionService, jwtService),
+          s"user-$userCode"
+        )
+    }
+  }
+
 }

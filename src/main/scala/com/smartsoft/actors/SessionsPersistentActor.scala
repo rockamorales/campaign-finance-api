@@ -21,15 +21,15 @@ object SessionsPersistentActor {
   case class AuthenticateUser(loginRequest: LoginRequest, user: User,  replyTo: ActorRef)
   case class InvalidateToken(token: String)
   case class InvalidateSession(userSession: UserSession, replyTo: ActorRef)
-  case class AuthorizeUser(token: String)
+  case class AuthorizeUser(sessionId: String, replyTo: ActorRef, user: User)
   object UpdateExpiredSessions
 
   object InvalidateAllActiveSessions
 
   //Events
   case class UserAuthenticated(userSession: UserSession)
-  case class UserAuthorized(sessionId: String, token: String)
-  object UserUnauthorized
+  case class UserAuthorized(user: User)
+  case class UserUnauthorized(message: String)
   case class SessionExpired(userSession: UserSession)
 
   case class UserAuthenticationFailed(userSession: UserSession)
@@ -73,6 +73,9 @@ object SessionsPersistentActor {
       )
     }
 
+    def get(key: String) = {
+        sessions.get(key)
+    }
     def size = sessions.size
   }
   case class UserSession(sessionId: String, userCode: String,
@@ -91,19 +94,36 @@ class SessionsPersistentActor(userCode: String, encryptionService: EncryptionSer
 
   override def persistenceId: String = s"authentication-history-$userCode"
 
-  override def receiveCommand: Receive = {
+  override def receiveCommand: Receive = handleReceiveCommand()
+
+  def handleReceiveCommand(sessionsState: SessionsState = SessionsState()): Receive = {
+    case AuthorizeUser(sessionId, replyTo, user) =>
+      sessionsState.get(sessionId).filter(_.state == SessionStates.ACTIVE) match {
+        case Some(_) =>
+          val userWithoutPassHash = user.copy(password = "****")
+          replyTo ! UserAuthorized(userWithoutPassHash)
+        case None =>
+          replyTo ! UserUnauthorized("Invalid session / Session expired")
+      }
+
     case UpdateExpiredSessions =>
       log.info("Scheduled Expired sessions update started")
-      val expiredSessions = sessionsState.sessions
-        .filter(_._2.state == SessionStates.ACTIVE)
-        .values
+      val expiredSessions = sessionsState.sessions.values
+        .filter(_.state == SessionStates.ACTIVE)
         .filter(userSession => jwtService.validateToken(userSession.token).isFailure)
-        .map(session => SessionExpired(session.copy(endDate = LocalDateTime.now, state = SessionStates.EXPIRED)))
+        .map(session => SessionExpired(
+          session.copy(
+            endDate = LocalDateTime.now,
+            state = SessionStates.EXPIRED,
+            message = "Session expired"
+
+          )
+        ))
         .toList
 
       persistAll(expiredSessions) {
         expiredSessionEvt =>
-          sessionsState = sessionsState.updated(expiredSessionEvt)
+          context.become(handleReceiveCommand(sessionsState.updated(expiredSessionEvt)))
       }
 
     case AuthenticateUser(loginRequest, user, replyTo) =>
@@ -112,12 +132,13 @@ class SessionsPersistentActor(userCode: String, encryptionService: EncryptionSer
         case Success(result) =>
           if (result) {
             log.info(s"User successfully authenticated: ${loginRequest.userCode}")
-            val authenticatedEvent = UserAuthenticated(UserSession(UUID.randomUUID().toString, loginRequest.userCode,
-              LocalDateTime.now, null, jwtService.generateToken(user.userCode), SessionStates.ACTIVE,
+            val sessionId = UUID.randomUUID().toString
+            val authenticatedEvent = UserAuthenticated(UserSession(sessionId, loginRequest.userCode,
+              LocalDateTime.now, null, jwtService.generateToken(user.userCode, sessionId), SessionStates.ACTIVE,
               "Successful authentication"))
             persistAsync(authenticatedEvent) { persistedEvt =>
-              sessionsState = sessionsState.updated(persistedEvt.userSession)
               replyTo ! UserAuthenticated(authenticatedEvent.userSession)
+              context.become(handleReceiveCommand(sessionsState.updated(persistedEvt.userSession)))
             }
           } else {
             handleAuthenticationFailure(s"Invalid password for user: ${loginRequest.userCode}", loginRequest, replyTo)
@@ -137,9 +158,9 @@ class SessionsPersistentActor(userCode: String, encryptionService: EncryptionSer
       val sessionInvalidated = SessionInvalidated(userSession.copy(state = SessionStates.INVALIDATED, endDate = LocalDateTime.now,
         message = "Session Invalidation requested"))
 
-      persist(sessionInvalidated){
+      persist(sessionInvalidated) {
         sessionInvalidatedPersistedEvt =>
-          sessionsState = sessionsState.updated(sessionInvalidatedPersistedEvt)
+          context.become(handleReceiveCommand(sessionsState.updated(sessionInvalidatedPersistedEvt)))
       }
 
     case InvalidateAllActiveSessions =>
@@ -149,14 +170,13 @@ class SessionsPersistentActor(userCode: String, encryptionService: EncryptionSer
       } self ! InvalidateSession(session, sender())
 
   }
-
   def handleAuthenticationFailure(message: String, loginRequest: LoginRequest, replyTo: ActorRef) = {
     log.error(s"Authentication failed: $message")
     val failedEvent = UserAuthenticationFailed(UserSession(UUID.randomUUID().toString, loginRequest.userCode,
       LocalDateTime.now(), null, null, SessionStates.UNAUTHORIZED, message))
 
     persistAsync(failedEvent) { persistedEvt =>
-      sessionsState.updated(persistedEvt.userSession)
+      context.become(handleReceiveCommand(sessionsState.updated(persistedEvt.userSession)))
     }
     replyTo ! UserAuthenticationFailed(failedEvent.userSession)
   }
@@ -165,13 +185,13 @@ class SessionsPersistentActor(userCode: String, encryptionService: EncryptionSer
     case RecoveryCompleted =>
       log.info("Session history recovery completed")
     case sessionExpired @ SessionExpired(_) =>
-      sessionsState = sessionsState.updated(sessionExpired)
+      context.become(handleReceiveCommand(sessionsState.updated(sessionExpired)))
     case UserAuthenticationFailed(userSession) =>
-      sessionsState = sessionsState.updated(userSession)
+      context.become(handleReceiveCommand(sessionsState.updated(userSession)))
     case UserAuthenticated(userSession) =>
-      sessionsState = sessionsState.updated(userSession)
-    case SessionInvalidated(userSession) =>
-      sessionsState = sessionsState.updated(userSession)
+      context.become(handleReceiveCommand(sessionsState.updated(userSession)))
+    case sessionInvalidated @ SessionInvalidated(_) =>
+      context.become(handleReceiveCommand(sessionsState.updated(sessionInvalidated)))
   }
 }
 
